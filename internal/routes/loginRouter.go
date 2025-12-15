@@ -16,7 +16,9 @@ func SetupRouter() *gin.Engine {
 
 	// Allow CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowOrigins: []string{
+    "http://localhost:3000",
+    "https://one-fix-al-fe.vercel.app",},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
@@ -63,3 +65,4 @@ func SetupRouter() *gin.Engine {
 
 	return r
 }
+
