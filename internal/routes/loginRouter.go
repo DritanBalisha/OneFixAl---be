@@ -31,7 +31,7 @@ func SetupRouter() *gin.Engine {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	r.POST("/signup", api.Signup)
+	r.POST("/signup/", api.Signup)
 	r.POST("/login", api.Login)
 	r.PUT("/technician/profile", middleware.AuthMiddleware(), api.CreateOrUpdateTechnicianProfile)
 	r.GET("/technician/profile", middleware.AuthMiddleware(), api.GetProfile)
@@ -68,5 +68,6 @@ func SetupRouter() *gin.Engine {
 
 	return r
 }
+
 
 
