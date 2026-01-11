@@ -12,23 +12,15 @@ import (
 
 var DB *gorm.DB
 
-func getDBConnString() string {
-	host := os.Getenv("PGHOST")
-	port := os.Getenv("PGPORT")
-	user := os.Getenv("PGUSER")
-	password := os.Getenv("PGPASSWORD")
-
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s sslmode=disable",
-		host, port, user, password,
-	)
-}
-
 func Connect() {
-	dsn := getDBConnString()
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		log.Fatal("❌ DATABASE_URL is not set")
+	}
 
 	var err error
-	// Retry up to 10 times (30s total)
+
+	// Retry up to 10 times (Railway startup safety)
 	for i := 1; i <= 10; i++ {
 		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
@@ -36,12 +28,9 @@ func Connect() {
 			return
 		}
 
-		log.Printf("⏳ Database not ready, retrying in 3s... (attempt %d/10)", i)
+		log.Printf("⏳ Database not ready, retrying in 3s... (%d/10)", i)
 		time.Sleep(3 * time.Second)
 	}
 
-	log.Fatalf("❌ Failed to connect to database after retries: %v", err)
+	log.Fatalf("❌ Failed to connect to database: %v", err)
 }
-
-
-
