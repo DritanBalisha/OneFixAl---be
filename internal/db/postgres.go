@@ -11,25 +11,15 @@ import (
 )
 
 var DB *gorm.DB
-
-func getDBConnString() string {
-	host := os.Getenv("DB_HOST")
-	port := os.Getenv("DB_PORT")
-	user := os.Getenv("DB_USER")
-	password := os.Getenv("DB_PASSWORD")
-	dbname := os.Getenv("DB_NAME")
-
-	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname,
-	)
-}
-
 func Connect() {
-	dsn := getDBConnString()
+	dsn := os.Getenv("DATABASE_URL")
+
+	if dsn == "" {
+		log.Fatal("❌ DATABASE_URL is not set")
+	}
 
 	var err error
-	// Retry up to 10 times (30s total)
+
 	for i := 1; i <= 10; i++ {
 		DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 		if err == nil {
