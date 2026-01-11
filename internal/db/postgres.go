@@ -20,7 +20,7 @@ func getDBConnString() string {
 
 	return fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s sslmode=disable",
-		host, port, user, password, ,
+		host, port, user, password,
 	)
 }
 
@@ -42,5 +42,6 @@ func Connect() {
 
 	log.Fatalf("❌ Failed to connect to database after retries: %v", err)
 }
+
 
 
