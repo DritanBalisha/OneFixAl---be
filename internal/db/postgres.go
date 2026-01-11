@@ -13,7 +13,7 @@ import (
 var DB *gorm.DB
 
 func getDBConnString() string {
-	host := os.Getenv("DB_HOST")
+	host := os.Getenv("PGHOST")
 	port := os.Getenv("PGPORT")
 	user := os.Getenv("PGUSER")
 	password := os.Getenv("PGPASSWORD")
@@ -42,4 +42,5 @@ func Connect() {
 
 	log.Fatalf("❌ Failed to connect to database after retries: %v", err)
 }
+
 
