@@ -20,7 +20,7 @@ func getDBConnString() string {
 	dbname := os.Getenv("PGDATABASE") 
 
 	return fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
 		host, port, user, password, dbname,
 	)
 }
@@ -43,3 +43,4 @@ func Connect() {
 
 	log.Fatalf("❌ Failed to connect to database after retries: %v", err)
 }
+
