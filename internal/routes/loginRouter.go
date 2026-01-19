@@ -24,8 +24,8 @@ func SetupRouter() *gin.Engine {
 		AllowCredentials: true,
 	}))
 
-	r.OPTIONS("/*path", func(c *gin.Context) {
-    c.Status(204)})
+	//r.OPTIONS("/*path", func(c *gin.Context) {
+   // c.Status(204)})
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
@@ -68,6 +68,7 @@ func SetupRouter() *gin.Engine {
 
 	return r
 }
+
 
 
 
