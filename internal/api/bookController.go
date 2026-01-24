@@ -33,6 +33,11 @@ func CreateBooking(c *gin.Context) {
 		return
 	}
 
+	if userID.(uint) == req.TechnicianID {
+        c.JSON(http.StatusForbidden, gin.H{"error": "You cannot book your own service"})
+        return
+    }
+
 	// 🔍 Check if slot exists
 	var slot models.Availability
 	if err := db.DB.First(&slot, req.AvailabilityID).Error; err != nil {
@@ -72,3 +77,4 @@ func CreateBooking(c *gin.Context) {
 		"booking": booking,
 	})
 }
+
