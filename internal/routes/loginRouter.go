@@ -4,6 +4,7 @@ import (
 	"OneFixAL/internal/api"
 	"OneFixAL/internal/middleware"
 	"OneFixAL/internal/websocket"
+	"os"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -12,64 +13,88 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	r.GET("/ws", websocket.WebSocketHandler)
+	// ── CORS ────────────────────────────────────────────────────
+	frontendURL := os.Getenv("FRONTEND_URL")
+	if frontendURL == "" {
+		frontendURL = "http://localhost:3000" // fallback for local dev
+	}
 
-	// Allow CORS
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-    "http://localhost:3000",
-    "https://one-fix-al-fe.vercel.app",},
+		AllowOrigins:     []string{"http://localhost:3000", frontendURL},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 
-	//r.OPTIONS("/*path", func(c *gin.Context) {
-   // c.Status(204)})
+	// ── WEBSOCKET ───────────────────────────────────────────────
+	r.GET("/ws", websocket.WebSocketHandler)
 
+	// ── HEALTH CHECK ────────────────────────────────────────────
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	r.POST("/signup", api.Signup)
-	r.POST("/login", api.Login)
-	r.PUT("/technician/profile", middleware.AuthMiddleware(), api.CreateOrUpdateTechnicianProfile)
-	r.GET("/technician/profile", middleware.AuthMiddleware(), api.GetProfile)
-
-	r.POST("/set-role", middleware.AuthMiddleware(), api.SetRole)
-
-	r.GET("/users/:id", api.GetUserByID)
-
-	r.GET("/technicians", api.GetTechniciansHandler)
-
-	//availability RoUTERs
-	r.POST("/availability", middleware.AuthMiddleware(), api.CreateAvailability)
-	r.GET("/availability", middleware.AuthMiddleware(), api.GetAvailability)
-	r.GET("/availability/:id", api.GetAvailabilityByTechnicianID)
-	r.PUT("/availability/:id", middleware.AuthMiddleware(), api.UpdateAvailability)
-	r.DELETE("/availability/:id", middleware.AuthMiddleware(), api.DeleteAvailability)
-
-	//BOOK ROUTES
-	r.POST("/bookings", middleware.AuthMiddleware(), api.CreateBooking)
-	r.GET("/tech/bookings", middleware.AuthMiddleware(), api.GetTechnicianBookings) //technician
-
-	r.PUT("/bookings/:id/status", middleware.AuthMiddleware(), api.UpdateBookingStatus)
-	r.GET("/my-bookings", middleware.AuthMiddleware(), api.GetMyBookings) // route for technicians to se wich client  booked
-
-	// r.HandleFunc("/bookings", api.CreateBooking(db)).Methods("POST")
-
-	auth := r.Group("/")
-	auth.Use(middleware.AuthMiddleware())
+	// ── PUBLIC ROUTES (no auth needed) ──────────────────────────
+	public := r.Group("/")
 	{
-		auth.GET("/me", api.GetProfile)
+		public.POST("/signup", api.Signup)
+		public.POST("/login", api.Login)
+
+		// OTP password reset
+		public.POST("/auth/forgot-password", api.ForgotPassword)
+		public.POST("/auth/verify-otp", api.VerifyOTPAndResetPassword)
+
+		// Public reads
+		public.GET("/users/:id", api.GetUserByID)
+		public.GET("/technicians", api.GetTechniciansHandler)
+		public.GET("/availability/:id", api.GetAvailabilityByTechnicianID)
 	}
 
-	// SetupAvailabilityRoutes(r)
+	// ── PROTECTED ROUTES (auth required) ────────────────────────
+	protected := r.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		// User
+		protected.GET("/me", api.GetProfile)
+		protected.POST("/set-role", api.SetRole)
+
+		// Technician profile — only technicians
+		protected.PUT("/technician/profile",
+			middleware.RoleMiddleware("technician"),
+			api.CreateOrUpdateTechnicianProfile,
+		)
+		protected.GET("/technician/profile",
+			middleware.RoleMiddleware("technician"),
+			api.GetTechnicianProfile, // ✅ fixed: was GetProfile before
+		)
+
+		// Availability — only technicians manage their own
+		protected.POST("/availability",
+			middleware.RoleMiddleware("technician"),
+			api.CreateAvailability,
+		)
+		protected.GET("/availability", api.GetAvailability)
+		protected.PUT("/availability/:id",
+			middleware.RoleMiddleware("technician"),
+			api.UpdateAvailability,
+		)
+		protected.DELETE("/availability/:id",
+			middleware.RoleMiddleware("technician"),
+			api.DeleteAvailability,
+		)
+
+		// Bookings
+		protected.POST("/bookings",
+			middleware.RoleMiddleware("client"),
+			api.CreateBooking,
+		)
+		protected.GET("/my-bookings", api.GetMyBookings)
+		protected.GET("/tech/bookings",
+			middleware.RoleMiddleware("technician"),
+			api.GetTechnicianBookings,
+		)
+		protected.PUT("/bookings/:id/status", api.UpdateBookingStatus)
+	}
 
 	return r
 }
-
-
-
-
-
