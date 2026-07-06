@@ -16,33 +16,21 @@ func SetupRouter() *gin.Engine {
 
 	// ── CORS ─────────────────────────────────────────────────────
 	// Must be registered FIRST before any routes
+	
+	// ✅ CORS must be FIRST — before any routes
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
 		frontendURL = "http://localhost:3000"
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins: []string{
-			"http://localhost:3000",
-			"http://localhost:5173",           // vite default port
-			"https://one-fix-al-fe.vercel.app", // hardcoded as safety net
-			frontendURL,                        // from env
-		},
-		AllowMethods: []string{
-			"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
-		},
-		AllowHeaders: []string{
-			"Origin",
-			"Content-Type",
-			"Authorization",
-			"Accept",
-			"X-Requested-With",
-		},
+		AllowOrigins:     []string{"http://localhost:3000", frontendURL},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+		MaxAge:           12 * time.Hour, // cache preflight for 12h
 	}))
-
 	// ── WEBSOCKET ─────────────────────────────────────────────────
 	r.GET("/ws", websocket.WebSocketHandler)
 
