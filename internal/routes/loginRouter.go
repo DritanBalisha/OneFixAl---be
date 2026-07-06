@@ -5,6 +5,7 @@ import (
 	"OneFixAL/internal/middleware"
 	"OneFixAL/internal/websocket"
 	"os"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -13,28 +14,44 @@ import (
 func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
-	// ── CORS ────────────────────────────────────────────────────
+	// ── CORS ─────────────────────────────────────────────────────
+	// Must be registered FIRST before any routes
 	frontendURL := os.Getenv("FRONTEND_URL")
 	if frontendURL == "" {
-		frontendURL = "http://localhost:3000" // fallback for local dev
+		frontendURL = "http://localhost:3000"
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", frontendURL},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://localhost:5173",           // vite default port
+			"https://one-fix-al-fe.vercel.app", // hardcoded as safety net
+			frontendURL,                        // from env
+		},
+		AllowMethods: []string{
+			"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH",
+		},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Authorization",
+			"Accept",
+			"X-Requested-With",
+		},
+		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
 	}))
 
-	// ── WEBSOCKET ───────────────────────────────────────────────
+	// ── WEBSOCKET ─────────────────────────────────────────────────
 	r.GET("/ws", websocket.WebSocketHandler)
 
-	// ── HEALTH CHECK ────────────────────────────────────────────
+	// ── HEALTH CHECK ──────────────────────────────────────────────
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(200, gin.H{"message": "pong"})
 	})
 
-	// ── PUBLIC ROUTES (no auth needed) ──────────────────────────
+	// ── PUBLIC ROUTES ─────────────────────────────────────────────
 	public := r.Group("/")
 	{
 		public.POST("/signup", api.Signup)
@@ -50,7 +67,7 @@ func SetupRouter() *gin.Engine {
 		public.GET("/availability/:id", api.GetAvailabilityByTechnicianID)
 	}
 
-	// ── PROTECTED ROUTES (auth required) ────────────────────────
+	// ── PROTECTED ROUTES ──────────────────────────────────────────
 	protected := r.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	{
@@ -58,17 +75,17 @@ func SetupRouter() *gin.Engine {
 		protected.GET("/me", api.GetProfile)
 		protected.POST("/set-role", api.SetRole)
 
-		// Technician profile — only technicians
+		// Technician profile
 		protected.PUT("/technician/profile",
 			middleware.RoleMiddleware("technician"),
 			api.CreateOrUpdateTechnicianProfile,
 		)
 		protected.GET("/technician/profile",
 			middleware.RoleMiddleware("technician"),
-			api.GetTechnicianProfile, // ✅ fixed: was GetProfile before
+			api.GetTechnicianProfile,
 		)
 
-		// Availability — only technicians manage their own
+		// Availability
 		protected.POST("/availability",
 			middleware.RoleMiddleware("technician"),
 			api.CreateAvailability,
