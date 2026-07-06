@@ -34,6 +34,7 @@ func main() {
 		&models.Booking{},
 		&models.Availability{},
 		&models.Notification{},
+		&models.OTPCode{},
 	)
 	if err != nil {
 		log.Fatalf("❌ Failed to run migrations: %v", err)
