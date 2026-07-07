@@ -17,27 +17,24 @@ func SetupRouter() *gin.Engine {
 	// ── CORS ─────────────────────────────────────────────────────
 	// Must be registered FIRST before any routes
 	
-	// ✅ CORS must be FIRST — before any routes
-	frontendURL := os.Getenv("FRONTEND_URL")
-	if frontendURL == "" {
-		frontendURL = "http://localhost:3000"
-	}
+    r.GET("/ws", websocket.WebSocketHandler)
 
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", frontendURL},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour, // cache preflight for 12h
-	}))
-	// ── WEBSOCKET ─────────────────────────────────────────────────
-	r.GET("/ws", websocket.WebSocketHandler)
+    // Allow CORS
+    r.Use(cors.New(cors.Config{
+        AllowOrigins: []string{
+    "http://localhost:3000",
+    "https://one-fix-al-fe.vercel.app",},
+        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+        AllowCredentials: true,
+    }))
 
-	// ── HEALTH CHECK ──────────────────────────────────────────────
-	r.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "pong"})
-	})
+    //r.OPTIONS("/*path", func(c *gin.Context) {
+   // c.Status(204)})
+
+    r.GET("/ping", func(c *gin.Context) {
+        c.JSON(200, gin.H{"message": "pong"})
+    })
 
 	// ── PUBLIC ROUTES ─────────────────────────────────────────────
 	public := r.Group("/")
