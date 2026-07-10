@@ -54,8 +54,3 @@ func Connect() {
 
 	log.Fatalf("❌ Failed to connect after retries: %v", err)
 }
-
-	log.Fatalf("❌ Failed to connect to database after retries: %v", err)
-}
-
-
