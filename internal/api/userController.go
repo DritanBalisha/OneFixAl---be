@@ -305,68 +305,39 @@ func generateOTP() (string, error) {
 
 // sendOTPEmail sends the OTP code to the user via SMTP
 func sendOTPEmail(toEmail, otpCode string) error {
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := os.Getenv("SMTP_PORT")
-	smtpUser := os.Getenv("SMTP_USER")
-	smtpPass := os.Getenv("SMTP_PASSWORD")
+	smtpHost := os.Getenv("SMTP_HOST")         // smtp.gmail.com
+	smtpPort := os.Getenv("SMTP_PORT")         // 587
+	smtpUser := os.Getenv("SMTP_USER")         // your@gmail.com
+	smtpPass := os.Getenv("SMTP_PASSWORD")     // Gmail app password
 
-	subject := "OneFixAL - Password Reset Code"
+	if smtpHost == "" || smtpPort == "" || smtpUser == "" || smtpPass == "" {
+		return fmt.Errorf("missing SMTP environment variables")
+	}
+
+	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
+
+	subject := "Subject: OneFixAL - Password Reset Code\r\n"
+	from := fmt.Sprintf("From: OneFixAL <%s>\r\n", smtpUser)
+	to := fmt.Sprintf("To: %s\r\n", toEmail)
+	mime := "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=\"UTF-8\"\r\n\r\n"
+
 	body := fmt.Sprintf(
 		"Your OneFixAL password reset code is:\n\n"+
 			"  %s\n\n"+
 			"This code expires in 10 minutes.\n"+
-			"If you did not request this, ignore this email.",
+			"If you did not request this, you can safely ignore this email.",
 		otpCode,
 	)
 
-	// Build message manually
-	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
-		smtpUser, toEmail, subject, body)
-
-	// Use TLS (port 465) instead of STARTTLS (port 587)
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: false,
-		ServerName:         smtpHost,
-	}
-
+	msg := []byte(from + to + subject + mime + body)
 	addr := fmt.Sprintf("%s:%s", smtpHost, smtpPort)
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
-	if err != nil {
-		return fmt.Errorf("TLS dial error: %v", err)
-	}
-	defer conn.Close()
 
-	client, err := smtp.NewClient(conn, smtpHost)
+	err := smtp.SendMail(addr, auth, smtpUser, []string{toEmail}, msg)
 	if err != nil {
-		return fmt.Errorf("SMTP client error: %v", err)
-	}
-	defer client.Close()
-
-	auth := smtp.PlainAuth("", smtpUser, smtpPass, smtpHost)
-	if err = client.Auth(auth); err != nil {
-		return fmt.Errorf("SMTP auth error: %v", err)
-	}
-	if err = client.Mail(smtpUser); err != nil {
-		return fmt.Errorf("SMTP mail error: %v", err)
-	}
-	if err = client.Rcpt(toEmail); err != nil {
-		return fmt.Errorf("SMTP rcpt error: %v", err)
+		return fmt.Errorf("failed to send OTP email: %w", err)
 	}
 
-	w, err := client.Data()
-	if err != nil {
-		return fmt.Errorf("SMTP data error: %v", err)
-	}
-	_, err = w.Write([]byte(msg))
-	if err != nil {
-		return fmt.Errorf("SMTP write error: %v", err)
-	}
-	err = w.Close()
-	if err != nil {
-		return fmt.Errorf("SMTP close error: %v", err)
-	}
-
-	return client.Quit()
+	return nil
 }
 // func sendOTPEmail(toEmail, otpCode string) error {
 // 	smtpHost := os.Getenv("SMTP_HOST")     // e.g. smtp.gmail.com
