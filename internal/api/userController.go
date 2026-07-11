@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"net/http"
 	"net/smtp"
-	"crypto/tls"
 	"os"
 
 	"time"
