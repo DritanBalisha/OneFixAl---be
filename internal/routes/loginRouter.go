@@ -4,6 +4,7 @@ import (
 	"OneFixAL/internal/api"
 	"OneFixAL/internal/middleware"
 	"OneFixAL/internal/websocket"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -13,28 +14,43 @@ func SetupRouter() *gin.Engine {
 	r := gin.Default()
 
 	// ── CORS ─────────────────────────────────────────────────────
-	// Must be registered FIRST before any routes
-	
-    r.GET("/ws", websocket.WebSocketHandler)
+	// Must be registered BEFORE every route
+	r.Use(cors.New(cors.Config{
+		AllowOrigins: []string{
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"https://one-fix-al-fe.vercel.app",
+		},
+		AllowMethods: []string{
+			"GET",
+			"POST",
+			"PUT",
+			"PATCH",
+			"DELETE",
+			"OPTIONS",
+		},
+		AllowHeaders: []string{
+			"Origin",
+			"Content-Type",
+			"Accept",
+			"Authorization",
+		},
+		ExposeHeaders: []string{
+			"Content-Length",
+		},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
-    // Allow CORS
-    r.Use(cors.New(cors.Config{
-        AllowOrigins: []string{
-    "http://localhost:3000",
-    "https://one-fix-al-fe.vercel.app",},
-        AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-        AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-        AllowCredentials: true,
-    }))
+	// ── WEBSOCKET ────────────────────────────────────────────────
+	r.GET("/ws", websocket.WebSocketHandler)
 
-    //r.OPTIONS("/*path", func(c *gin.Context) {
-   // c.Status(204)})
+	// ── TEST ROUTE ───────────────────────────────────────────────
+	r.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"message": "pong"})
+	})
 
-    r.GET("/ping", func(c *gin.Context) {
-        c.JSON(200, gin.H{"message": "pong"})
-    })
-
-	// ── PUBLIC ROUTES ─────────────────────────────────────────────
+	// ── PUBLIC ROUTES ────────────────────────────────────────────
 	public := r.Group("/")
 	{
 		public.POST("/signup", api.Signup)
@@ -50,7 +66,7 @@ func SetupRouter() *gin.Engine {
 		public.GET("/availability/:id", api.GetAvailabilityByTechnicianID)
 	}
 
-	// ── PROTECTED ROUTES ──────────────────────────────────────────
+	// ── PROTECTED ROUTES ─────────────────────────────────────────
 	protected := r.Group("/")
 	protected.Use(middleware.AuthMiddleware())
 	{
@@ -59,40 +75,54 @@ func SetupRouter() *gin.Engine {
 		protected.POST("/set-role", api.SetRole)
 
 		// Technician profile
-		protected.PUT("/technician/profile",
+		protected.PUT(
+			"/technician/profile",
 			middleware.RoleMiddleware("technician"),
 			api.CreateOrUpdateTechnicianProfile,
 		)
-		protected.GET("/technician/profile",
+
+		protected.GET(
+			"/technician/profile",
 			middleware.RoleMiddleware("technician"),
 			api.GetTechnicianProfile,
 		)
 
 		// Availability
-		protected.POST("/availability",
+		protected.POST(
+			"/availability",
 			middleware.RoleMiddleware("technician"),
 			api.CreateAvailability,
 		)
+
 		protected.GET("/availability", api.GetAvailability)
-		protected.PUT("/availability/:id",
+
+		protected.PUT(
+			"/availability/:id",
 			middleware.RoleMiddleware("technician"),
 			api.UpdateAvailability,
 		)
-		protected.DELETE("/availability/:id",
+
+		protected.DELETE(
+			"/availability/:id",
 			middleware.RoleMiddleware("technician"),
 			api.DeleteAvailability,
 		)
 
 		// Bookings
-		protected.POST("/bookings",
+		protected.POST(
+			"/bookings",
 			middleware.RoleMiddleware("client"),
 			api.CreateBooking,
 		)
+
 		protected.GET("/my-bookings", api.GetMyBookings)
-		protected.GET("/tech/bookings",
+
+		protected.GET(
+			"/tech/bookings",
 			middleware.RoleMiddleware("technician"),
 			api.GetTechnicianBookings,
 		)
+
 		protected.PUT("/bookings/:id/status", api.UpdateBookingStatus)
 	}
 
