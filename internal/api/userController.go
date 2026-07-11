@@ -369,33 +369,68 @@ func ForgotPassword(c *gin.Context) {
 	var input struct {
 		Email string `json:"email"`
 	}
-	if err := c.ShouldBindJSON(&input); err != nil || input.Email == "" {
+
+	if err := c.ShouldBindJSON(&input); err != nil {
+		fmt.Println("❌ Invalid JSON:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
 		return
 	}
 
-	// Look up user — always return same message to prevent email enumeration
+	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
+
+	if input.Email == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email is required"})
+		return
+	}
+
+	fmt.Println("📩 Forgot password request for:", input.Email)
+
+	// Always return same message if user does not exist
 	var user models.User
 	if err := db.DB.Where("email = ?", input.Email).First(&user).Error; err != nil {
-		c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a reset code has been sent"})
+		fmt.Println("⚠️ Email not found, but returning OK:", input.Email)
+
+		c.JSON(http.StatusOK, gin.H{
+			"message": "If that email exists, a reset code has been sent",
+		})
 		return
 	}
 
-	// Invalidate any existing unused OTPs for this user + purpose
-	db.DB.Model(&models.OTPCode{}).
-		Where("user_id = ? AND purpose = ? AND used = ?", user.ID, "reset_password", false).
-		Update("used", true)
+	fmt.Println("✅ User found:", user.Email)
 
-	// Generate plain OTP (sent to user) and hash (stored in DB)
+	// Invalidate old unused OTPs
+	if err := db.DB.Model(&models.OTPCode{}).
+		Where("user_id = ? AND purpose = ? AND used = ?", user.ID, "reset_password", false).
+		Update("used", true).Error; err != nil {
+		fmt.Println("❌ Could not invalidate old OTPs:", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Could not process reset request",
+		})
+		return
+	}
+
+	// Generate plain OTP
 	otp, err := generateOTP()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not generate reset code"})
+		fmt.Println("❌ Could not generate OTP:", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Could not generate reset code",
+		})
 		return
 	}
 
+	fmt.Println("✅ OTP generated")
+
+	// Hash OTP before saving
 	hashedOTP, err := HashPassword(otp)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not process reset code"})
+		fmt.Println("❌ Could not hash OTP:", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Could not process reset code",
+		})
 		return
 	}
 
@@ -407,20 +442,36 @@ func ForgotPassword(c *gin.Context) {
 		ExpiresAt: time.Now().Add(10 * time.Minute),
 		Used:      false,
 	}
+
 	if err := db.DB.Create(&otpRecord).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not save reset code"})
+		fmt.Println("❌ Could not save OTP:", err)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Could not save reset code",
+		})
 		return
 	}
 
-	// Send plain OTP via email
+	fmt.Println("✅ OTP saved in database")
+
+	// Send plain OTP by email
 	if err := sendOTPEmail(user.Email, otp); err != nil {
 		fmt.Println("❌ Email send error:", err)
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not send email, try again later"})
+
+		// Optional: delete failed OTP so unused codes do not remain
+		db.DB.Delete(&otpRecord)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Could not send email, try again later",
+		})
 		return
 	}
 
 	fmt.Printf("✅ OTP sent to %s\n", user.Email)
-	c.JSON(http.StatusOK, gin.H{"message": "If that email exists, a reset code has been sent"})
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "If that email exists, a reset code has been sent",
+	})
 }
 
 // POST /auth/verify-otp
