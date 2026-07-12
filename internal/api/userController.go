@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"math/big"
 	"net/http"
-	"net/smtp"
 	"os"
+	"strings"
 	"io"
 
 	"time"
