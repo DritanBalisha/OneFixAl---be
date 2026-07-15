@@ -122,6 +122,15 @@ func SetupRouter() *gin.Engine {
 			middleware.RoleMiddleware("technician"),
 			api.GetTechnicianBookings,
 		)
+		// Booking price flow
+protected.POST("/bookings/:id/set-price",
+    middleware.RoleMiddleware("technician"),
+    api.SetBookingPrice,
+)
+protected.POST("/bookings/:id/accept-price",
+    middleware.RoleMiddleware("client"),
+    api.AcceptBookingPrice,
+)
 
 		protected.PUT("/bookings/:id/status", api.UpdateBookingStatus)
 	}
