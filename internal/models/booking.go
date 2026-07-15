@@ -14,11 +14,12 @@ type Booking struct {
 	LocationLat    float64      `json:"location_lat"`
 	LocationLon    float64      `json:"location_lon"`
 	Description    string       `json:"description"`
-	JobPrice       int64        `json:"job_price"`       
-	BookingFee     int64        `json:"booking_fee"`     
-	PlatformFee    int64        `json:"platform_fee"`   
-	TotalAmount    int64        `json:"total_amount"`   
-	Status         string       `json:"status"`       
-	PaymentStatus  string       `json:"payment_status"`
+	JobPrice       int64        `json:"job_price"`      
+	BookingFee     int64        `json:"booking_fee"`    // 10% deposit
+	PlatformFee    int64        `json:"platform_fee"`   // 2% OneFixAL
+	TotalAmount    int64        `json:"total_amount"`
+	PriceSetByTech bool         `json:"price_set_by_tech" gorm:"default:false"`
+	Status         string       `json:"status"`         
+	PaymentStatus  string       `json:"payment_status"` 
 	CreatedAt      time.Time    `json:"created_at"`
 }
