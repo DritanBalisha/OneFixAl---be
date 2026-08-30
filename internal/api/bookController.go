@@ -230,6 +230,37 @@ func AcceptBookingPrice(c *gin.Context) {
 	})
 }
 
+func DeleteBooking(c *gin.Context) {
+    id := c.Param("id")
+    userID, _ := c.Get("userID")
+
+    var booking models.Booking
+    if err := db.DB.First(&booking, id).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Booking not found"})
+        return
+    }
+
+    // Only owner can delete
+    uid := userID.(uint)
+    if booking.CustomerID != uid && booking.TechnicianID != uid {
+        c.JSON(http.StatusForbidden, gin.H{"error": "Not your booking"})
+        return
+    }
+
+    // Only allow delete on completed or cancelled
+    if booking.Status != "completed" && booking.Status != "cancelled" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "Can only remove completed or cancelled bookings"})
+        return
+    }
+
+    if err := db.DB.Delete(&booking).Error; err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete booking"})
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{"message": "Booking removed"})
+}
+
 // ── Email helper ─────────────────────────────────────────────────
 func sendEmail(toEmail, subject, body string) {
 	if toEmail == "" {
