@@ -101,6 +101,8 @@ func SetupRouter() *gin.Engine {
 			middleware.RoleMiddleware("technician"),
 			api.UpdateAvailability,
 		)
+		
+		protected.DELETE("/bookings/:id", api.DeleteBooking)
 
 		protected.DELETE(
 			"/availability/:id",
